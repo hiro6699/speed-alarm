@@ -3,42 +3,88 @@
 <head>
 <meta charset="UTF-8">
 <title>高精度 速度警報アプリ</title>
+
 <style>
-  body { font-family: sans-serif; padding: 20px; text-align: center; }
-  .speed { font-size: 48px; margin-top: 20px; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    text-align: center;
+    padding: 20px;
+    transition: background-color 0.3s ease;
+    background: linear-gradient(180deg, #1e1e1e, #3a3a3a);
+    color: white;
+  }
+
+  /* 警報中の背景（赤） */
+  body.alert {
+    background: #8b0000;
+  }
+
+  h2 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .speed {
+    font-size: 72px;
+    font-weight: bold;
+    margin-top: 20px;
+    letter-spacing: 2px;
+    color: #00eaff;
+    text-shadow: 0 0 10px #00eaff;
+  }
+
+  .status {
+    font-size: 24px;
+    margin-top: 10px;
+    opacity: 0.8;
+  }
+
   button {
     font-size: 28px;
     padding: 20px 40px;
     margin: 15px;
     border-radius: 12px;
+    border: none;
+    background: #444;
+    color: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    transition: transform 0.1s ease, background 0.3s ease;
+  }
+
+  button:active {
+    transform: scale(0.95);
+    background: #666;
+  }
+
+  /* 警報中の速度表示（赤く光る） */
+  body.alert .speed {
+    color: #ff4d4d;
+    text-shadow: 0 0 20px #ff4d4d;
   }
 </style>
 </head>
+
 <body>
 
-<h2>高精度 速度警報アプリ</h2>
+<h2>速度警報アプリ</h2>
 
 <button id="startBtn">スタート</button>
 <button onclick="setLimit(10)">10km/h</button>
 <button onclick="setLimit(30)">30km/h</button>
 
-<div class="speed" id="speed">速度: 0 km/h</div>
-<div id="status"></div>
+<div class="speed" id="speed">0.0 km/h</div>
+<div class="status" id="status">待機中</div>
 
 <script>
 let speedLimit = 30;
 let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let alarmInterval = null;
 
-// 移動平均用
 let speedHistory = [];
-
-// 前回位置
 let lastTime = null;
 let lastLat = null;
 let lastLon = null;
 
-// 距離計算（Haversine）
 function calcDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const toRad = x => x * Math.PI / 180;
@@ -50,35 +96,35 @@ function calcDistance(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// 移動平均
 function smoothSpeed(newSpeed) {
   speedHistory.push(newSpeed);
-  if (speedHistory.length > 5) speedHistory.shift();
+  if (speedHistory.length > 3) speedHistory.shift();
   return speedHistory.reduce((a,b)=>a+b,0) / speedHistory.length;
 }
 
 document.getElementById("startBtn").onclick = () => {
-  audioCtx.resume(); // iPhone音声ロック解除
+  audioCtx.resume();
   startGPS();
   document.getElementById("status").innerText = "GPS取得中…";
 };
 
 function setLimit(limit) {
   speedLimit = limit;
-  document.getElementById("status").innerText = `現在の設定: ${limit} km/h`;
+  document.getElementById("status").innerText = `設定速度: ${limit} km/h`;
 }
 
 function playBeep() {
   const osc = audioCtx.createOscillator();
-  osc.frequency.value = 800;
+  osc.frequency.value = 1200;
   osc.connect(audioCtx.destination);
   osc.start();
-  setTimeout(() => osc.stop(), 300);
+  setTimeout(() => osc.stop(), 200);
 }
 
 function startAlarm() {
   if (alarmInterval) return;
-  alarmInterval = setInterval(playBeep, 1000);
+  alarmInterval = setInterval(playBeep, 500);
+  document.body.classList.add("alert");
 }
 
 function stopAlarm() {
@@ -86,6 +132,7 @@ function stopAlarm() {
     clearInterval(alarmInterval);
     alarmInterval = null;
   }
+  document.body.classList.remove("alert");
 }
 
 function startGPS() {
@@ -107,11 +154,10 @@ function startGPS() {
       lastLat = lat;
       lastLon = lon;
 
-      // 移動平均で安定化
       speed_km_h = smoothSpeed(speed_km_h);
 
       document.getElementById("speed").innerText =
-        `速度: ${speed_km_h.toFixed(1)} km/h`;
+        `${speed_km_h.toFixed(1)} km/h`;
 
       if (speed_km_h > speedLimit) {
         startAlarm();
