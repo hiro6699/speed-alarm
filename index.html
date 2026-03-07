@@ -1,11 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>速度警報アプリ（スマホ対応）</title>
+<style>
+  body { font-family: sans-serif; padding: 20px; text-align: center; }
+  .speed { font-size: 48px; margin-top: 20px; }
+  button {
+    font-size: 28px;
+    padding: 20px 40px;
+    margin: 15px;
+    border-radius: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h2>速度警報アプリ（スマホ対応）</h2>
+
 <button id="startBtn">スタート</button>
+<button onclick="setLimit(10)">10km/h</button>
+<button onclick="setLimit(30)">30km/h</button>
+
+<div class="speed" id="speed">速度: 0 km/h</div>
+<div id="status"></div>
 
 <script>
+let speedLimit = 30;
 let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let alarmInterval = null;
+
 document.getElementById("startBtn").onclick = () => {
-  audioCtx.resume(); // iPhone対策
+  audioCtx.resume(); // iPhoneの音声ロック解除
   startGPS();
+  document.getElementById("status").innerText = "GPS取得中…";
 };
+
+function setLimit(limit) {
+  speedLimit = limit;
+  document.getElementById("status").innerText = `現在の設定: ${limit} km/h`;
+}
+
+function playBeep() {
+  const osc = audioCtx.createOscillator();
+  osc.frequency.value = 800;
+  osc.connect(audioCtx.destination);
+  osc.start();
+  setTimeout(() => osc.stop(), 300);
+}
+
+function startAlarm() {
+  if (alarmInterval) return;
+  alarmInterval = setInterval(playBeep, 1000);
+}
+
+function stopAlarm() {
+  if (alarmInterval) {
+    clearInterval(alarmInterval);
+    alarmInterval = null;
+  }
+}
 
 function startGPS() {
   navigator.geolocation.watchPosition(
@@ -17,18 +71,25 @@ function startGPS() {
         speed_km_h = (speed_m_s * 3.6).toFixed(1);
       }
 
-      // 速度表示
       document.getElementById("speed").innerText = `速度: ${speed_km_h} km/h`;
 
-      // 速度超過チェック
       if (speed_km_h > speedLimit) {
         startAlarm();
       } else {
         stopAlarm();
       }
     },
-    (err) => alert("GPS取得エラー: " + err.message),
+    (err) => {
+      document.getElementById("status").innerText = "GPSエラー: " + err.message;
+    },
     { enableHighAccuracy: true }
   );
 }
+</script>
+
+</body>
+</html>curacy: true }
+  );
+}
+
 </script>
