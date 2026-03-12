@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>保守用車速度警報アプリ</title>
+<title>高精度 速度警報アプリ</title>
 
 <style>
   body {
@@ -10,11 +10,10 @@
     text-align: center;
     padding: 20px;
     transition: background-color 0.3s ease;
-    background: #1e1e1e; /* 単色の暗い背景 */
+    background: #1e1e1e; /* 暗い単色 */
     color: white;
   }
 
-  /* 警報中の背景（赤） */
   body.alert {
     background: #8b0000;
   }
@@ -39,10 +38,10 @@
     opacity: 0.8;
   }
 
-  /* ボタン全体を少し大きく */
+  /* ボタンの基本文字サイズは小さめにして差を出す */
   button {
-    font-size: 32px; /* ← 28px → 32px にUP */
-    padding: 25px 50px; /* ← 少し大きく */
+    font-size: 22px;
+    padding: 28px 55px;
     margin: 15px;
     border-radius: 14px;
     border: none;
@@ -57,15 +56,15 @@
     background: #666;
   }
 
-  /* 数値部分だけ大きく太字にする */
+  /* ★ 数値だけ大きく太字にする（ここが重要） */
   .big-bold {
-    font-size: 40px;
-    font-weight: bold;
-    display: block;
-    margin-top: 5px;
+    font-size: 50px;     /* ← 明確に大きい */
+    font-weight: 800;
+    display: block;      /* ← block でもクリックに影響しない */
+    margin-top: 6px;
+    line-height: 1.1;
   }
 
-  /* 警報中の速度表示（赤く光る） */
   body.alert .speed {
     color: #ff4d4d;
     text-shadow: 0 0 20px #ff4d4d;
@@ -75,11 +74,11 @@
 
 <body>
 
-<h2>保守用車速度警報アプリ</h2>
+<h2>速度警報アプリ</h2>
 
 <button id="startBtn">スタート</button>
 
-<!-- ★ 修正：数値だけ大きく太字 -->
+<!-- ★ 数値だけ大きく太字 -->
 <button onclick="setLimit(10)">
   基地内制限速度
   <span class="big-bold">10km/h</span>
@@ -108,4 +107,92 @@ function calcDistance(lat1, lon1, lat2, lon2) {
   const toRad = x => x * Math.PI / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function smoothSpeed(newSpeed) {
+  speedHistory.push(newSpeed);
+  if (speedHistory.length > 3) speedHistory.shift();
+  return speedHistory.reduce((a,b)=>a+b,0) / speedHistory.length;
+}
+
+document.getElementById("startBtn").onclick = () => {
+  audioCtx.resume();
+  startGPS();
+  document.getElementById("status").innerText = "GPS取得中…";
+};
+
+function setLimit(limit) {
+  speedLimit = limit;
+  document.getElementById("status").innerText = `設定速度: ${limit} km/h`;
+}
+
+function playBeep() {
+  const osc = audioCtx.createOscillator();
+  osc.frequency.value = 1200;
+  osc.connect(audioCtx.destination);
+  osc.start();
+  setTimeout(() => osc.stop(), 200);
+}
+
+function startAlarm() {
+  if (alarmInterval) return;
+  alarmInterval = setInterval(playBeep, 500);
+  document.body.classList.add("alert");
+}
+
+function stopAlarm() {
+  if (alarmInterval) {
+    clearInterval(alarmInterval);
+    alarmInterval = null;
+  }
+  document.body.classList.remove("alert");
+}
+
+function startGPS() {
+  navigator.geolocation.watchPosition(
+    (pos) => {
+      const now = Date.now() / 1000;
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      let speed_km_h = 0;
+
+      if (lastTime !== null) {
+        const dt = now - lastTime;
+        const dist = calcDistance(lastLat, lastLon, lat, lon);
+        speed_km_h = (dist / dt) * 3.6;
+      }
+
+      lastTime = now;
+      lastLat = lat;
+      lastLon = lon;
+
+      speed_km_h = smoothSpeed(speed_km_h);
+
+      document.getElementById("speed").innerText =
+        `${speed_km_h.toFixed(1)} km/h`;
+
+      if (speed_km_h > speedLimit) {
+        startAlarm();
+      } else {
+        stopAlarm();
+      }
+    },
+    (err) => {
+      document.getElementById("status").innerText = "GPSエラー: " + err.message;
+    },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 5000
+    }
+  );
+}
+</script>
+
+</body>
+</html>
