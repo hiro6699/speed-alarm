@@ -2,82 +2,82 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>保守用車速度警報アプリ</title>
+<title>高精度 速度警報アプリ</title>
 
 <style>
   body {
-    margin: 0;
-    padding: 40px 20px;
-    font-family: "Yu Gothic", "Meiryo", sans-serif;
-    background: #ffffff;
-    color: #000000;
+    font-family: 'Segoe UI', sans-serif;
     text-align: center;
-    transition: background 0.3s ease;
+    padding: 20px;
+    transition: background-color 0.3s ease;
+    background: #1e1e1e; /* ← 単色の暗い背景に変更 */
+    color: white;
   }
 
-  /* 警報中は画面全体を赤く */
+  /* 警報中の背景（赤） */
   body.alert {
-    background: #ff0000;
-    color: #ffffff;
+    background: #8b0000;
   }
 
-  .title {
-    font-size: 42px;
-    font-weight: bold;
-    margin-bottom: 40px;
-  }
-
-  .limit-block {
-    font-size: 36px;
-    line-height: 1.6;
-    margin-bottom: 40px;
+  h2 {
+    font-size: 32px;
+    margin-bottom: 10px;
   }
 
   .speed {
-    font-size: 80px;
+    font-size: 72px;
     font-weight: bold;
-    margin: 40px 0;
-  }
-
-  .start-btn {
-    font-size: 48px;
-    padding: 20px 80px;
-    border-radius: 10px;
-    border: 2px solid #000;
-    background: #ffffff;
-    color: #000;
     margin-top: 20px;
-  }
-
-  body.alert .start-btn {
-    border-color: #fff;
-    background: #ff6666;
-    color: #fff;
+    letter-spacing: 2px;
+    color: #00eaff;
+    text-shadow: 0 0 10px #00eaff;
   }
 
   .status {
-    font-size: 32px;
-    margin-top: 30px;
+    font-size: 24px;
+    margin-top: 10px;
+    opacity: 0.8;
+  }
+
+  button {
+    font-size: 28px;
+    padding: 20px 40px;
+    margin: 15px;
+    border-radius: 12px;
+    border: none;
+    background: #444;
+    color: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    transition: transform 0.1s ease, background 0.3s ease;
+  }
+
+  button:active {
+    transform: scale(0.95);
+    background: #666;
+  }
+
+  /* 警報中の速度表示（赤く光る） */
+  body.alert .speed {
+    color: #ff4d4d;
+    text-shadow: 0 0 20px #ff4d4d;
   }
 </style>
 </head>
 
 <body>
 
-<div class="title">保守用車速度警報アプリ</div>
+<h2>速度警報アプリ</h2>
 
-<div class="limit-block">
-  基地内制限速度<br>
-  １０km/h<br><br>
-  駅構内制限速度<br>
-  ３０km/h
-</div>
+<button id="startBtn">スタート</button>
 
-<div class="speed" id="speed">0.0km/h</div>
+<!-- ★ 修正①：10km/h ボタンの表記 -->
+<button onclick="setLimit(10)">基地内制限速度<br>10km/h</button>
 
-<button class="start-btn" id="startBtn">ＳＴＡＲＴ<br>（ＧＰＳ取得）</button>
+<!-- ★ 修正②：30km/h ボタンの表記 -->
+<button onclick="setLimit(30)">構内制限速度<br>30km/h</button>
 
-<div class="status" id="status">GPS取得中…</div>
+<div class="speed" id="speed">0.0 km/h</div>
+<div class="status" id="status">待機中</div>
 
 <script>
 let speedLimit = 30;
@@ -109,7 +109,13 @@ function smoothSpeed(newSpeed) {
 document.getElementById("startBtn").onclick = () => {
   audioCtx.resume();
   startGPS();
+  document.getElementById("status").innerText = "GPS取得中…";
 };
+
+function setLimit(limit) {
+  speedLimit = limit;
+  document.getElementById("status").innerText = `設定速度: ${limit} km/h`;
+}
 
 function playBeep() {
   const osc = audioCtx.createOscillator();
@@ -134,8 +140,6 @@ function stopAlarm() {
 }
 
 function startGPS() {
-  document.getElementById("status").innerText = "GPS取得中…";
-
   navigator.geolocation.watchPosition(
     (pos) => {
       const now = Date.now() / 1000;
@@ -157,7 +161,7 @@ function startGPS() {
       speed_km_h = smoothSpeed(speed_km_h);
 
       document.getElementById("speed").innerText =
-        `${speed_km_h.toFixed(1)}km/h`;
+        `${speed_km_h.toFixed(1)} km/h`;
 
       if (speed_km_h > speedLimit) {
         startAlarm();
@@ -179,4 +183,4 @@ function startGPS() {
 
 </body>
 </html>
-
+</html>
